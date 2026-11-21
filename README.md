@@ -175,7 +175,19 @@ User ──< Patient ──< Mapping >── Doctor >── User
 ```bash
 python manage.py test
 ```
-The suite covers the full register → login → patient/doctor → mapping flow, duplicate mappings, unauthenticated access and per-user data isolation. It uses the PostgreSQL settings from `.env` and creates and drops its own test database.
+7 tests, all passing against PostgreSQL. They cover:
+
+| Test | What it checks |
+|---|---|
+| Full flow | register → login → create patient and doctor → assign → list → delete mapping → update patient; duplicate mapping rejected (`400`) |
+| Isolation and auth | no token gives `401`; another user's patient gives `404` and is absent from their list |
+| Doctor permissions | any user can read a doctor (`200`); a non-creator gets `403` on update and delete; the creator can update and delete |
+| Validation errors | negative age and missing gender on a patient give `400`; an invalid doctor email gives `400` |
+| Register validation | duplicate email, including a different letter case, gives `400`; a password under 8 characters gives `400` |
+| Wrong password | login gives `401` |
+| Mapping ownership | you cannot map another user's patient (`400`); their mappings are hidden (`404` / empty list) |
+
+Not covered by automated tests: token refresh, token expiry, and update or delete of mappings by id for other users. The tests use the PostgreSQL settings from `.env` and create and drop their own test database.
 
 ## Project layout
 ```
