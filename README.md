@@ -74,6 +74,19 @@ curl http://127.0.0.1:8000/api/patients/ -H "Authorization: Bearer <access_token
 ### Postman
 Import `postman_collection.json`. Run **Register**, then **Login** (it saves the token automatically), then any other request.
 
+### Postman test results
+| Register (201) | Create patient (201) |
+|---|---|
+| ![Register](docs/screenshots/01-register-201.png) | ![Create patient](docs/screenshots/02-create-patient-201.png) |
+
+| List patients (200) | Create doctor (201) |
+|---|---|
+| ![List patients](docs/screenshots/03-list-patients-200.png) | ![Create doctor](docs/screenshots/04-create-doctor-201.png) |
+
+Assign doctor to patient (201):
+
+![Assign doctor](docs/screenshots/05-assign-doctor-201.png)
+
 ## Tests
 ```
 python manage.py test
