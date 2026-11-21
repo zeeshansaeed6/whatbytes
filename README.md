@@ -1,28 +1,87 @@
 # Healthcare Backend
 
-Django + DRF + PostgreSQL + JWT (simplejwt).
+A REST API for managing patients, doctors and patient–doctor assignments.
+Built with **Django**, **Django REST Framework**, **PostgreSQL** and **JWT authentication** (`djangorestframework-simplejwt`).
+
+## Features
+- Register and log in; JWT access/refresh tokens.
+- Patients are private: each user only sees and edits their own.
+- Doctors are visible to every authenticated user; only the creator can edit or delete them.
+- Assign doctors to patients (duplicate assignments are rejected).
+- Validation errors and proper HTTP status codes (400, 401, 404, ...).
+- Secrets are read from environment variables, never committed.
 
 ## Setup
+1. Install Python 3.10+ and PostgreSQL, then create a database:
+   ```
+   createdb healthcare
+   ```
+2. Install dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+3. Create your env file and fill in `SECRET_KEY` and the database credentials:
+   ```
+   cp .env.example .env
+   ```
+4. Run migrations and start the server:
+   ```
+   python manage.py migrate
+   python manage.py runserver
+   ```
+
+## Environment variables
+| Name | Purpose |
+|---|---|
+| `SECRET_KEY` | Django secret key |
+| `DEBUG` | `True` for development, omit/`False` in production |
+| `DB_NAME`, `DB_USER`, `DB_PASSWORD` | PostgreSQL credentials |
+| `DB_HOST`, `DB_PORT` | Optional, default `localhost` / `5432` |
+
+## API
+All endpoints except register and login need the header `Authorization: Bearer <access_token>`.
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/auth/register/` | Body: `name, email, password` |
+| POST | `/api/auth/login/` | Body: `email, password` -> `access, refresh` |
+| POST | `/api/auth/refresh/` | Body: `refresh` -> new `access` |
+| POST | `/api/patients/` | Add a patient |
+| GET | `/api/patients/` | List your patients |
+| GET / PUT / DELETE | `/api/patients/<id>/` | Your patient only (404 otherwise) |
+| POST | `/api/doctors/` | Add a doctor |
+| GET | `/api/doctors/` | List all doctors |
+| GET | `/api/doctors/<id>/` | Doctor details |
+| PUT / DELETE | `/api/doctors/<id>/` | Creator only (403 otherwise) |
+| POST | `/api/mappings/` | Body: `patient, doctor` (patient must be yours) |
+| GET | `/api/mappings/` | Mappings of your patients |
+| GET | `/api/mappings/<patient_id>/` | Doctors assigned to that patient |
+| DELETE | `/api/mappings/<id>/` | Remove a mapping |
+
+### Example
 ```
-pip install -r requirements.txt
-cp .env.example .env      # fill in SECRET_KEY and Postgres credentials
-python manage.py migrate
-python manage.py runserver
+curl -X POST http://127.0.0.1:8000/api/auth/register/ \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Jane", "email": "jane@example.com", "password": "pass12345"}'
+
+curl -X POST http://127.0.0.1:8000/api/auth/login/ \
+  -H "Content-Type: application/json" \
+  -d '{"email": "jane@example.com", "password": "pass12345"}'
+
+curl http://127.0.0.1:8000/api/patients/ -H "Authorization: Bearer <access_token>"
 ```
 
-## Endpoints (all except register/login need `Authorization: Bearer <access>`)
-| Method | Path | Notes |
-|---|---|---|
-| POST | /api/auth/register/ | `name, email, password` |
-| POST | /api/auth/login/ | `email, password` -> `access, refresh` |
-| POST | /api/auth/refresh/ | `refresh` -> new `access` |
-| POST/GET | /api/patients/ | GET lists only your patients |
-| GET/PUT/DELETE | /api/patients/<id>/ | own patients only |
-| POST/GET | /api/doctors/ | GET lists all doctors |
-| GET/PUT/DELETE | /api/doctors/<id>/ | modify only if creator |
-| POST/GET | /api/mappings/ | `patient, doctor`; GET lists mappings of your patients |
-| GET | /api/mappings/<patient_id>/ | doctors assigned to that patient |
-| DELETE | /api/mappings/<id>/ | remove a mapping |
+### Postman
+Import `postman_collection.json`. Run **Register**, then **Login** (it saves the token automatically), then any other request.
 
 ## Tests
-`python manage.py test` (needs the Postgres DB from `.env`; the test DB is created automatically).
+```
+python manage.py test
+```
+Covers the full register -> login -> patient/doctor -> mapping flow, duplicate mappings, unauthenticated access and per-user data isolation.
+
+## Project layout
+```
+config/   Django settings and root URLs
+api/      models, serializers, views, urls, tests
+```
