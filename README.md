@@ -1,86 +1,146 @@
-# Healthcare Backend
+# Healthcare Backend API
 
-A REST API for managing patients, doctors and patient–doctor assignments.
-Built with **Django**, **Django REST Framework**, **PostgreSQL** and **JWT authentication** (`djangorestframework-simplejwt`).
+A REST API for a healthcare application: users register and log in, manage their own patients and a shared list of doctors, and assign doctors to patients.
+
+**Stack:** Django · Django REST Framework · PostgreSQL · JWT (`djangorestframework-simplejwt`)
+
+## Contents
+- [Features](#features)
+- [Quick start](#quick-start)
+- [API reference](#api-reference)
+- [Data model](#data-model)
+- [Design decisions](#design-decisions)
+- [Testing](#testing)
+- [Project layout](#project-layout)
 
 ## Features
-- Register and log in; JWT access/refresh tokens.
-- Patients are private: each user only sees and edits their own.
-- Doctors are visible to every authenticated user; only the creator can edit or delete them.
-- Assign doctors to patients (duplicate assignments are rejected).
-- Validation errors and proper HTTP status codes (400, 401, 404, ...).
-- Secrets are read from environment variables, never committed.
+- Register and log in with email and password; JWT access and refresh tokens.
+- **Patients are private**: each user sees and edits only the patients they created.
+- **Doctors are shared**: any authenticated user can list them, but only the creator can edit or delete one.
+- Assign doctors to patients; duplicate assignments are rejected.
+- Input validation with clear error messages and correct HTTP status codes.
+- Secrets (secret key, database credentials) come from environment variables, never from code.
+- Every endpoint requires authentication except register and login.
 
-## Quick start with Docker
-```
+## Quick start
+
+### Option A: Docker (one command)
+Requires Docker only.
+```bash
 docker compose up --build
 ```
-This starts PostgreSQL and the API (migrations run automatically). The API is at http://localhost:8000/api/. No `.env` needed; demo credentials are in `docker-compose.yml`.
+PostgreSQL and the API start together and migrations run automatically. The API is served at `http://localhost:8000/api/`. No `.env` is needed; demo credentials live in `docker-compose.yml` and are for local use only.
 
-## Setup (without Docker)
-1. Install Python 3.10+ and PostgreSQL, then create a database:
-   ```
+### Option B: Run locally
+Requires Python 3.10+ and PostgreSQL.
+
+1. Create the database:
+   ```bash
    createdb healthcare
    ```
 2. Install dependencies:
-   ```
+   ```bash
    pip install -r requirements.txt
    ```
-3. Create your env file and fill in `SECRET_KEY` and the database credentials:
-   ```
+3. Create your env file and fill in the values:
+   ```bash
    cp .env.example .env
    ```
-4. Run migrations and start the server:
-   ```
+4. Migrate and run:
+   ```bash
    python manage.py migrate
    python manage.py runserver
    ```
 
-## Environment variables
-| Name | Purpose |
-|---|---|
-| `SECRET_KEY` | Django secret key |
-| `DEBUG` | `True` for development, omit/`False` in production |
-| `DB_NAME`, `DB_USER`, `DB_PASSWORD` | PostgreSQL credentials |
-| `DB_HOST`, `DB_PORT` | Optional, default `localhost` / `5432` |
+### Environment variables
+| Name | Required | Purpose |
+|---|---|---|
+| `SECRET_KEY` | yes | Django secret key |
+| `DB_NAME`, `DB_USER`, `DB_PASSWORD` | yes | PostgreSQL credentials |
+| `DB_HOST`, `DB_PORT` | no | Default `localhost` / `5432` |
+| `DEBUG` | no | `True` for development; defaults to `False` |
+| `ALLOWED_HOSTS` | no | Comma-separated; defaults to `localhost,127.0.0.1` |
 
-## API
-All endpoints except register and login need the header `Authorization: Bearer <access_token>`.
+## API reference
+Base URL: `http://127.0.0.1:8000/api`. Send JSON, and send `Authorization: Bearer <access_token>` on everything except register and login.
 
+### Authentication
+| Method | Path | Body | Result |
+|---|---|---|---|
+| POST | `/auth/register/` | `name, email, password` (min 8 chars) | `201` with `id, email` |
+| POST | `/auth/login/` | `email, password` | `200` with `access, refresh` |
+| POST | `/auth/refresh/` | `refresh` | `200` with a new `access` |
+
+Access tokens are short-lived (5 minutes by default); use the refresh endpoint or log in again when you get `401`.
+
+### Patients (private to the creator)
 | Method | Path | Description |
 |---|---|---|
-| POST | `/api/auth/register/` | Body: `name, email, password` |
-| POST | `/api/auth/login/` | Body: `email, password` -> `access, refresh` |
-| POST | `/api/auth/refresh/` | Body: `refresh` -> new `access` |
-| POST | `/api/patients/` | Add a patient |
-| GET | `/api/patients/` | List your patients |
-| GET / PUT / DELETE | `/api/patients/<id>/` | Your patient only (404 otherwise) |
-| POST | `/api/doctors/` | Add a doctor |
-| GET | `/api/doctors/` | List all doctors |
-| GET | `/api/doctors/<id>/` | Doctor details |
-| PUT / DELETE | `/api/doctors/<id>/` | Creator only (403 otherwise) |
-| POST | `/api/mappings/` | Body: `patient, doctor` (patient must be yours) |
-| GET | `/api/mappings/` | Mappings of your patients |
-| GET | `/api/mappings/<patient_id>/` | Doctors assigned to that patient |
-| DELETE | `/api/mappings/<id>/` | Remove a mapping |
+| POST | `/patients/` | Create. Fields: `name, age, gender, address, medical_history` |
+| GET | `/patients/` | List your patients |
+| GET | `/patients/<id>/` | Details of one of your patients |
+| PUT | `/patients/<id>/` | Update |
+| DELETE | `/patients/<id>/` | Delete (also removes its mappings) |
 
-### Example
-```
+### Doctors (readable by all, editable by the creator)
+| Method | Path | Description |
+|---|---|---|
+| POST | `/doctors/` | Create. Fields: `name, specialization, email (unique), phone` |
+| GET | `/doctors/` | List all doctors |
+| GET | `/doctors/<id>/` | Details |
+| PUT | `/doctors/<id>/` | Update (creator only, else `403`) |
+| DELETE | `/doctors/<id>/` | Delete (creator only, else `403`) |
+
+### Patient–doctor mappings
+| Method | Path | Description |
+|---|---|---|
+| POST | `/mappings/` | Assign. Body: `{"patient": <id>, "doctor": <id>}` |
+| GET | `/mappings/` | All mappings for your patients |
+| GET | `/mappings/<patient_id>/` | Doctors assigned to that patient |
+| DELETE | `/mappings/<id>/` | Remove a mapping (here `<id>` is the **mapping** id) |
+
+### Status codes
+| Code | Meaning |
+|---|---|
+| `200` / `201` / `204` | Success / created / deleted |
+| `400` | Validation error (missing field, duplicate email, duplicate mapping, unknown id) |
+| `401` | Missing, invalid or expired token, or wrong login credentials |
+| `403` | You are not the creator of this doctor |
+| `404` | Record does not exist or belongs to another user |
+
+### Example session
+```bash
+# 1. Register
 curl -X POST http://127.0.0.1:8000/api/auth/register/ \
   -H "Content-Type: application/json" \
   -d '{"name": "Jane", "email": "jane@example.com", "password": "pass12345"}'
+# {"id": 1, "email": "jane@example.com"}
 
+# 2. Log in and copy the "access" token
 curl -X POST http://127.0.0.1:8000/api/auth/login/ \
   -H "Content-Type: application/json" \
   -d '{"email": "jane@example.com", "password": "pass12345"}'
 
-curl http://127.0.0.1:8000/api/patients/ -H "Authorization: Bearer <access_token>"
+# 3. Create a patient
+curl -X POST http://127.0.0.1:8000/api/patients/ \
+  -H "Authorization: Bearer <access>" -H "Content-Type: application/json" \
+  -d '{"name": "John Doe", "age": 40, "gender": "Male"}'
+
+# 4. Create a doctor, then assign the doctor to the patient
+curl -X POST http://127.0.0.1:8000/api/doctors/ \
+  -H "Authorization: Bearer <access>" -H "Content-Type: application/json" \
+  -d '{"name": "Dr. Smith", "specialization": "Cardiology", "email": "smith@example.com"}'
+
+curl -X POST http://127.0.0.1:8000/api/mappings/ \
+  -H "Authorization: Bearer <access>" -H "Content-Type: application/json" \
+  -d '{"patient": 1, "doctor": 1}'
 ```
 
 ### Postman
-Import `postman_collection.json`. Run **Register**, then **Login** (it saves the token automatically), then any other request.
+Import `postman_collection.json`. Run **Register**, then **Login** (it stores the token automatically), then the other requests. The collection uses id `1` and fixed emails, so on a database that already has data, change the ids in the URLs and the emails in the bodies to match your records (use the `id` returned by each Create call).
 
-### Postman test results
+**Results from a Postman run:**
+
 | Register (201) | Create patient (201) |
 |---|---|
 | ![Register](docs/screenshots/01-register-201.png) | ![Create patient](docs/screenshots/02-create-patient-201.png) |
@@ -93,14 +153,43 @@ Assign doctor to patient (201):
 
 ![Assign doctor](docs/screenshots/05-assign-doctor-201.png)
 
-## Tests
+## Data model
 ```
+User ──< Patient ──< Mapping >── Doctor >── User
+         (created_by)            (created_by)
+```
+- **Patient**: `name, age, gender, address, medical_history, created_by`
+- **Doctor**: `name, specialization, email (unique), phone, created_by`
+- **Mapping**: `patient, doctor`, with a unique constraint on the pair, so a doctor can be assigned to a patient only once. A patient can have many doctors and a doctor many patients.
+- Deleting a patient or doctor cascades to its mappings.
+
+## Design decisions
+- **JWT, stateless auth**: no server-side sessions; the client sends the token on each request.
+- **Authenticated by default**: `IsAuthenticated` is the global default permission, and only register and login opt out. A new endpoint is protected unless someone deliberately opens it.
+- **404, not 403, for another user's patient**: the API does not reveal whether a record exists.
+- **Ownership is set on the server**: `created_by` comes from the token, never from the request body.
+- **Mappings are checked against ownership**: you can only assign doctors to your own patients.
+- **Email is the username**: login is by email, and emails are compared case-insensitively.
+
+## Testing
+```bash
 python manage.py test
 ```
-Covers the full register -> login -> patient/doctor -> mapping flow, duplicate mappings, unauthenticated access and per-user data isolation.
+The suite covers the full register → login → patient/doctor → mapping flow, duplicate mappings, unauthenticated access and per-user data isolation. It uses the PostgreSQL settings from `.env` and creates and drops its own test database.
 
 ## Project layout
 ```
-config/   Django settings and root URLs
-api/      models, serializers, views, urls, tests
+config/            settings and root URLs
+api/models.py      Patient, Doctor, Mapping
+api/serializers.py validation and JSON conversion
+api/views.py       endpoint logic
+api/urls.py        routes
+api/tests.py       API tests
+postman_collection.json
+docker-compose.yml, Dockerfile
 ```
+
+## Known limitations
+- No pagination on list endpoints.
+- No roles (for example admin vs. doctor) and no token blacklist on logout.
+- Doctor emails are unique across all users.
