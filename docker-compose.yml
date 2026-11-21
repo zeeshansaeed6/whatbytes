@@ -1,0 +1,30 @@
+# One-command demo: docker compose up --build  ->  API at http://localhost:8000/api/
+# shortcut: demo credentials below are for local use only, never reuse them in production.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: healthcare
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d healthcare"]
+      interval: 3s
+      retries: 10
+
+  web:
+    build: .
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
+    environment:
+      SECRET_KEY: demo-only-secret-key-change-me-0123456789abcdef
+      DEBUG: "True"
+      DB_NAME: healthcare
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: db
+      ALLOWED_HOSTS: "*"
+    depends_on:
+      db:
+        condition: service_healthy

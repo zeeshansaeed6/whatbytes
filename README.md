@@ -11,7 +11,13 @@ Built with **Django**, **Django REST Framework**, **PostgreSQL** and **JWT authe
 - Validation errors and proper HTTP status codes (400, 401, 404, ...).
 - Secrets are read from environment variables, never committed.
 
-## Setup
+## Quick start with Docker
+```
+docker compose up --build
+```
+This starts PostgreSQL and the API (migrations run automatically). The API is at http://localhost:8000/api/. No `.env` needed; demo credentials are in `docker-compose.yml`.
+
+## Setup (without Docker)
 1. Install Python 3.10+ and PostgreSQL, then create a database:
    ```
    createdb healthcare
