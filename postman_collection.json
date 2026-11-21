@@ -1,0 +1,26 @@
+{
+  "info": {
+    "name": "Healthcare Backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{access}}", "type": "string"}]},
+  "variable": [{"key": "base", "value": "http://127.0.0.1:8000/api"}, {"key": "access", "value": ""}],
+  "item": [
+    {"name": "Register", "request": {"auth": {"type": "noauth"}, "method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"name\": \"Jane\", \"email\": \"jane@example.com\", \"password\": \"pass12345\"}"}, "url": "{{base}}/auth/register/"}},
+    {"name": "Login", "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.collectionVariables.set('access', pm.response.json().access);"]}}], "request": {"auth": {"type": "noauth"}, "method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"email\": \"jane@example.com\", \"password\": \"pass12345\"}"}, "url": "{{base}}/auth/login/"}},
+    {"name": "Create patient", "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"name\": \"John Doe\", \"age\": 40, \"gender\": \"Male\", \"address\": \"1 Main St\", \"medical_history\": \"None\"}"}, "url": "{{base}}/patients/"}},
+    {"name": "List patients", "request": {"method": "GET", "url": "{{base}}/patients/"}},
+    {"name": "Get patient 1", "request": {"method": "GET", "url": "{{base}}/patients/1/"}},
+    {"name": "Update patient 1", "request": {"method": "PUT", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"name\": \"John Doe\", \"age\": 41, \"gender\": \"Male\"}"}, "url": "{{base}}/patients/1/"}},
+    {"name": "Create doctor", "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"name\": \"Dr. Smith\", \"specialization\": \"Cardiology\", \"email\": \"smith@example.com\", \"phone\": \"555-0100\"}"}, "url": "{{base}}/doctors/"}},
+    {"name": "List doctors", "request": {"method": "GET", "url": "{{base}}/doctors/"}},
+    {"name": "Get doctor 1", "request": {"method": "GET", "url": "{{base}}/doctors/1/"}},
+    {"name": "Update doctor 1", "request": {"method": "PUT", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"name\": \"Dr. Smith\", \"specialization\": \"Neurology\", \"email\": \"smith@example.com\"}"}, "url": "{{base}}/doctors/1/"}},
+    {"name": "Assign doctor to patient", "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"patient\": 1, \"doctor\": 1}"}, "url": "{{base}}/mappings/"}},
+    {"name": "List mappings", "request": {"method": "GET", "url": "{{base}}/mappings/"}},
+    {"name": "Doctors of patient 1", "request": {"method": "GET", "url": "{{base}}/mappings/1/"}},
+    {"name": "Delete mapping 1", "request": {"method": "DELETE", "url": "{{base}}/mappings/1/"}},
+    {"name": "Delete doctor 1", "request": {"method": "DELETE", "url": "{{base}}/doctors/1/"}},
+    {"name": "Delete patient 1", "request": {"method": "DELETE", "url": "{{base}}/patients/1/"}}
+  ]
+}
